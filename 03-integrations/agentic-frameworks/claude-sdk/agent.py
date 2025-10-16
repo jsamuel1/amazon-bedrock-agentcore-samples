@@ -35,9 +35,7 @@ async def with_options_example(prompt):
         max_turns=1,
     )
 
-    async for message in query(
-        prompt=prompt, options=options
-    ):
+    async for message in query(prompt=prompt, options=options):
         if isinstance(message, AssistantMessage):
             for block in message.content:
                 if isinstance(block, TextBlock):
@@ -72,13 +70,13 @@ async def with_tools_example(prompt):
 async def main(prompt, mode):
     """Run the right example based on mode."""
 
-    if mode==1:
+    if mode == 1:
         async for message in basic_example(prompt):
             yield message
-    elif mode==2:
+    elif mode == 2:
         async for message in with_options_example(prompt):
             yield message
-    elif mode==3:
+    elif mode == 3:
         async for message in with_tools_example(prompt):
             yield message
     else:
