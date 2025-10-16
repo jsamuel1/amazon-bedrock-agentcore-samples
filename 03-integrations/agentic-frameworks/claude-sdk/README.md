@@ -85,6 +85,8 @@ agentcore configure -e agent.py
 agentcore launch
 ```
 
+**Note**: The Claude Agent SDK requires either `ANTHROPIC_API_KEY` or AWS Bedrock access configured as environment variables. For more details on configuration options, see the [Claude Agent SDK documentation](https://docs.claude.com/en/api/agent-sdk/overview#core-concepts).
+
 ### 5. Testing Your Agent
 
 Once deployed, you can test your agent using:

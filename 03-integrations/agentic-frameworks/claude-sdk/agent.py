@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """Quick start example for Claude Code SDK."""
 
-import anyio
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
-app = BedrockAgentCoreApp()
-
 from claude_agent_sdk import (
     AssistantMessage,
     ClaudeAgentOptions,
@@ -12,6 +9,8 @@ from claude_agent_sdk import (
     TextBlock,
     query,
 )
+
+app = BedrockAgentCoreApp()
 
 
 async def basic_example(prompt):
