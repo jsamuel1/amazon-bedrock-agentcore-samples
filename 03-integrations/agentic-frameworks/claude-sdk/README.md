@@ -78,14 +78,18 @@ The agent supports three modes:
 ### 4. Configure and Launch with Bedrock AgentCore Toolkit
 
 ```bash
-# Configure your agent for deployment
-agentcore configure -e agent.py
+# Configure your agent for deployment (without memory)
+agentcore configure -e agent.py --disable-memory
 
-# Deploy your agent
-agentcore launch
+# Deploy your agent with environment variables
+agentcore launch --env CLAUDE_CODE_USE_BEDROCK=1 --env AWS_BEARER_TOKEN_BEDROCK=<your-token>
 ```
 
-**Note**: The Claude Agent SDK requires either `ANTHROPIC_API_KEY` or AWS Bedrock access configured as environment variables. For more details on configuration options, see the [Claude Agent SDK documentation](https://docs.claude.com/en/api/agent-sdk/overview#core-concepts).
+**Note**: The Claude Agent SDK requires either `ANTHROPIC_API_KEY` or AWS Bedrock access configured as environment variables. This example uses:
+- `CLAUDE_CODE_USE_BEDROCK=1` to enable Bedrock integration
+- `AWS_BEARER_TOKEN_BEDROCK` for authentication with Bedrock
+
+You can provide these environment variables either in the Dockerfile or inline with the `--env` option as shown above. For more details on configuration options, see the [Claude Agent SDK documentation](https://docs.claude.com/en/api/agent-sdk/overview#core-concepts).
 
 ### 5. Testing Your Agent
 
@@ -125,3 +129,34 @@ You can customize the agent by:
 - Modifying the `system_prompt` in `ClaudeAgentOptions`
 - Adjusting `max_turns` for conversation length
 - Creating new example functions for additional use cases
+
+## Clean Up
+
+When you're done with the agent, you can clean up the deployed resources.
+
+### Memory
+Since this example is configured with `--disable-memory`, no memory resources were created, so there's nothing to remove for memory.
+
+### Agent Runtime
+To destroy the agent and all its associated AWS resources, use the `agentcore destroy` command:
+
+```bash
+agentcore destroy
+```
+
+You'll see output similar to:
+
+```
+⚠️  About to destroy resources for agent 'claudesdkagent'
+
+Current deployment:
+  • Agent ARN: arn:aws:bedrock-agentcore:us-east-1:XXXXXXXXXXXX:runtime/claudesdkagent-XXXXXXXXXX
+  • Agent ID: claudesdkagent-XXXXXXXXXX
+  • ECR Repository: XXXXXXXXXXXX.dkr.ecr.us-east-1.amazonaws.com/bedrock-agentcore-claudesdkagent
+  • Execution Role: arn:aws:iam::XXXXXXXXXXXX:role/AmazonBedrockAgentCoreSDKRuntime-us-east-1-XXXXXXXXXX
+
+This will permanently delete AWS resources and cannot be undone!
+Are you sure you want to destroy the agent 'claudesdkagent' and all its resources? [y/N]:
+```
+
+Type `y` to confirm and permanently delete the agent and all its associated resources including the ECR repository and execution role.
