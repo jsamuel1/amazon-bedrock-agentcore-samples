@@ -93,4 +93,5 @@ async def run_main(payload):
         yield message
 
 
-app.run()
+if __name__ == "__main__":
+    app.run()

@@ -30,8 +30,8 @@ RUN npm install -g @anthropic-ai/claude-code
 RUN uv pip install aws-opentelemetry-distro>=0.10.1
 
 
-# Signal that this is running in Docker for host binding logic
-ENV DOCKER_CONTAINER=1
+# For using Claude on Bedrock, you also need to either add the AWS_BEARER_TOKEN_BEDROCK here, or inline with starter toolkit with --env option
+ENV CLAUDE_CODE_USE_BEDROCK=1
 
 # Create non-root user
 RUN useradd -m -u 1000 bedrock_agentcore
@@ -43,6 +43,10 @@ EXPOSE 8080
 
 # Copy entire project (respecting .dockerignore)
 COPY . .
+
+# Health check to verify container setup
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD test -f agent.py || exit 1
 
 # Use the full module path
 
