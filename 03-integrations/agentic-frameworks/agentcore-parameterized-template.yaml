@@ -1,0 +1,320 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Parameterized AgentCore deployment - Accepts agent code and requirements as parameters"
+
+Parameters:
+  AgentName:
+    Type: String
+    Default: "CustomAgent"
+    Description: "Name for the agent runtime"
+    AllowedPattern: "^[a-zA-Z][a-zA-Z0-9_]{0,47}$"
+    ConstraintDescription: "Must start with a letter, max 48 characters, alphanumeric and underscores only"
+
+  AgentCode:
+    Type: String
+    Description: "Base64-encoded Python agent code"
+    NoEcho: false
+
+  Requirements:
+    Type: String
+    Description: "Base64-encoded requirements.txt content"
+    Default: ""
+    NoEcho: false
+
+  ImageTag:
+    Type: String
+    Default: "latest"
+    Description: "Tag for the Docker image"
+
+  NetworkMode:
+    Type: String
+    Default: "PUBLIC"
+    Description: "Network mode for AgentCore resources"
+    AllowedValues:
+      - PUBLIC
+      - PRIVATE
+
+  ECRRepositoryName:
+    Type: String
+    Default: "custom-agent"
+    Description: "Name of the ECR repository"
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Agent Configuration"
+        Parameters:
+          - AgentName
+          - AgentCode
+          - Requirements
+          - NetworkMode
+      - Label:
+          default: "Container Configuration"
+        Parameters:
+          - ECRRepositoryName
+          - ImageTag
+
+Resources:
+  # ECR Repository for container images
+  ECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub "${AWS::StackName}-${ECRRepositoryName}"
+      ImageTagMutability: MUTABLE
+      EmptyOnDelete: true
+      ImageScanningConfiguration:
+        ScanOnPush: true
+
+  # IAM Role for Agent Execution
+  AgentExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-agent-execution-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+      Policies:
+        - PolicyName: BedrockInvokeModel
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource: !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/*"
+
+  # IAM Role for CodeBuild
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-codebuild-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser
+        - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+      Policies:
+        - PolicyName: SSMParameterAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                Resource:
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/agentcore/${AWS::StackName}/*"
+
+  # Lambda Execution Role
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-lambda-execution-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: CodeBuildAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuilds
+                Resource: !GetAtt CodeBuildProject.Arn
+
+  # Store decoded agent code in SSM Parameter
+  AgentCodeParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/agentcore/${AWS::StackName}/agent-code"
+      Type: String
+      Value: !Ref AgentCode
+      Description: "Base64-encoded agent code"
+
+  # Store decoded requirements in SSM Parameter
+  RequirementsParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/agentcore/${AWS::StackName}/requirements"
+      Type: String
+      Value: !Ref Requirements
+      Description: "Base64-encoded requirements.txt"
+
+  # CodeBuild Project to build Docker image
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub "${AWS::StackName}-build"
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        Type: ARM_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-aarch64-standard:3.0
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: AWS_ACCOUNT_ID
+            Value: !Ref AWS::AccountId
+          - Name: IMAGE_REPO_NAME
+            Value: !Sub "${AWS::StackName}-${ECRRepositoryName}"
+          - Name: IMAGE_TAG
+            Value: !Ref ImageTag
+          - Name: AGENT_CODE_PARAM
+            Value: !Ref AgentCodeParameter
+          - Name: REQUIREMENTS_PARAM
+            Value: !Ref RequirementsParameter
+      Source:
+        Type: NO_SOURCE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - echo Logging in to Amazon ECR...
+                - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+                - echo Retrieving agent code and requirements from SSM...
+                - AGENT_CODE=$(aws ssm get-parameter --name $AGENT_CODE_PARAM --query 'Parameter.Value' --output text)
+                - REQUIREMENTS=$(aws ssm get-parameter --name $REQUIREMENTS_PARAM --query 'Parameter.Value' --output text)
+                - echo "$AGENT_CODE" | base64 -d > agent.py
+                - echo "$REQUIREMENTS" | base64 -d > requirements.txt
+            build:
+              commands:
+                - echo Building Docker image...
+                - |
+                  cat > Dockerfile <<'EOF'
+                  FROM public.ecr.aws/docker/library/python:3.12-slim
+
+                  WORKDIR /app
+
+                  COPY requirements.txt .
+                  RUN pip install --no-cache-dir -r requirements.txt
+
+                  COPY agent.py .
+
+                  RUN useradd -m -u 1000 agentuser && chown -R agentuser:agentuser /app
+                  USER agentuser
+
+                  CMD ["python", "agent.py"]
+                  EOF
+                - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
+                - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+            post_build:
+              commands:
+                - echo Pushing the Docker image...
+                - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+                - echo Build completed successfully
+
+  # Lambda function to trigger CodeBuild
+  TriggerBuildFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-trigger-build"
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 300
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          import time
+
+          codebuild = boto3.client('codebuild')
+
+          def handler(event, context):
+              try:
+                  if event['RequestType'] in ['Create', 'Update']:
+                      project_name = event['ResourceProperties']['ProjectName']
+
+                      # Start the build
+                      response = codebuild.start_build(projectName=project_name)
+                      build_id = response['build']['id']
+
+                      # Wait for build to complete
+                      while True:
+                          build_info = codebuild.batch_get_builds(ids=[build_id])
+                          status = build_info['builds'][0]['buildStatus']
+
+                          if status == 'SUCCEEDED':
+                              cfnresponse.send(event, context, cfnresponse.SUCCESS, {'BuildId': build_id})
+                              return
+                          elif status in ['FAILED', 'FAULT', 'STOPPED', 'TIMED_OUT']:
+                              cfnresponse.send(event, context, cfnresponse.FAILED, {'Error': f'Build {status}'})
+                              return
+
+                          time.sleep(10)
+                  else:
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+              except Exception as e:
+                  print(f"Error: {str(e)}")
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {'Error': str(e)})
+
+  # Custom resource to trigger the build
+  TriggerBuild:
+    Type: Custom::TriggerBuild
+    DependsOn:
+      - CodeBuildProject
+      - AgentCodeParameter
+      - RequirementsParameter
+    Properties:
+      ServiceToken: !GetAtt TriggerBuildFunction.Arn
+      ProjectName: !Ref CodeBuildProject
+
+  # Bedrock AgentCore Runtime (placeholder - adapt based on your actual AgentCore setup)
+  AgentRuntime:
+    Type: AWS::Bedrock::Agent
+    DependsOn: TriggerBuild
+    Properties:
+      AgentName: !Ref AgentName
+      AgentResourceRoleArn: !GetAtt AgentExecutionRole.Arn
+      FoundationModel: anthropic.claude-3-sonnet-20240229-v1:0
+      Instruction: "You are a helpful AI assistant."
+      IdleSessionTTLInSeconds: 600
+
+Outputs:
+  ECRRepositoryUri:
+    Description: "ECR Repository URI"
+    Value: !GetAtt ECRRepository.RepositoryUri
+
+  AgentExecutionRoleArn:
+    Description: "Agent Execution Role ARN"
+    Value: !GetAtt AgentExecutionRole.Arn
+
+  AgentCodeParameterName:
+    Description: "SSM Parameter containing agent code"
+    Value: !Ref AgentCodeParameter
+
+  RequirementsParameterName:
+    Description: "SSM Parameter containing requirements"
+    Value: !Ref RequirementsParameter
+
+  CodeBuildProjectName:
+    Description: "CodeBuild project name"
+    Value: !Ref CodeBuildProject
+
+  AgentRuntimeId:
+    Description: "Bedrock Agent Runtime ID"
+    Value: !Ref AgentRuntime
