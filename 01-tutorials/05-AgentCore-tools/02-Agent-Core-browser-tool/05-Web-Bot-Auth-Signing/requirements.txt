@@ -7,7 +7,7 @@ bedrock-agentcore
 playwright>=1.40.0
 
 # AWS SDK and Bedrock
-boto3>=1.40.61
+boto3>=1.40.58
 
 # Browser automation handled by bedrock-agentcore
 
