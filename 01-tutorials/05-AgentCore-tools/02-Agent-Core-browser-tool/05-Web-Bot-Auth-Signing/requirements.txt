@@ -7,7 +7,7 @@ bedrock-agentcore
 playwright>=1.40.0
 
 # AWS SDK and Bedrock
-boto3>=1.40.61
+boto3>=1.40.58
 
 # Browser automation handled by bedrock-agentcore
 
@@ -28,3 +28,4 @@ numpy>=1.24.0
 jupyter>=1.0.0
 ipython>=8.0.0
 notebook>=6.4.0
+nest-asyncio>=1.5.6
