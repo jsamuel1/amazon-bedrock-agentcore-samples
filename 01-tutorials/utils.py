@@ -93,20 +93,101 @@ def create_agentcore_role(agent_name):
         "Version": "2012-10-17",
         "Statement": [
             {
+                "Sid": "BedrockPermissions",
+                "Effect": "Allow",
+                "Action": [
+                    "bedrock:InvokeModel",
+                    "bedrock:InvokeModelWithResponseStream",
+                ],
+                "Resource": "*",
+            },
+            {
+                "Sid": "ECRImageAccess",
+                "Effect": "Allow",
+                "Action": [
+                    "ecr:BatchGetImage",
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:GetAuthorizationToken",
+                    "ecr:BatchGetImage",
+                    "ecr:GetDownloadUrlForLayer",
+                ],
+                "Resource": [f"arn:aws:ecr:{region}:{account_id}:repository/*"],
+            },
+            {
+                "Effect": "Allow",
+                "Action": ["logs:DescribeLogStreams", "logs:CreateLogGroup"],
+                "Resource": [
+                    f"arn:aws:logs:{region}:{account_id}:log-group:/aws/bedrock-agentcore/runtimes/*"
+                ],
+            },
+            {
+                "Effect": "Allow",
+                "Action": ["logs:DescribeLogGroups"],
+                "Resource": [f"arn:aws:logs:{region}:{account_id}:log-group:*"],
+            },
+            {
+                "Effect": "Allow",
+                "Action": ["logs:CreateLogStream", "logs:PutLogEvents"],
+                "Resource": [
+                    f"arn:aws:logs:{region}:{account_id}:log-group:/aws/bedrock-agentcore/runtimes/*:log-stream:*"
+                ],
+            },
+            {
+                "Sid": "ECRTokenAccess",
+                "Effect": "Allow",
+                "Action": ["ecr:GetAuthorizationToken"],
+                "Resource": "*",
+            },
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "xray:PutTraceSegments",
+                    "xray:PutTelemetryRecords",
+                    "xray:GetSamplingRules",
+                    "xray:GetSamplingTargets",
+                ],
+                "Resource": ["*"],
+            },
+            {
+                "Effect": "Allow",
+                "Resource": "*",
+                "Action": "cloudwatch:PutMetricData",
+                "Condition": {
+                    "StringEquals": {"cloudwatch:namespace": "bedrock-agentcore"}
+                },
+            },
+            {
+                "Sid": "GetAgentAccessToken",
+                "Effect": "Allow",
+                "Action": [
+                    "bedrock-agentcore:GetWorkloadAccessToken",
+                    "bedrock-agentcore:GetWorkloadAccessTokenForJWT",
+                    "bedrock-agentcore:GetWorkloadAccessTokenForUserId",
+                ],
+                "Resource": [
+                    f"arn:aws:bedrock-agentcore:{region}:{account_id}:workload-identity-directory/default",
+                    f"arn:aws:bedrock-agentcore:{region}:{account_id}:workload-identity-directory/default/workload-identity/{agent_name}-*",
+                ],
+            },
+             {
+                "Effect": "Allow",
+                "Action": ["s3:ListBucket"],
+                "Resource": "arn:aws:s3:::web-bot-session-record-*"
+            },
+            {
                 "Effect": "Allow",
                 "Action": [
                     "s3:PutObject",
                     "s3:ListMultipartUploadParts",
                     "s3:AbortMultipartUpload"
                 ],
-                "Resource": "arn:aws:s3:::YOUR_S3_FOLDER/replay-data/*",
+                "Resource": f"arn:aws:s3:::web-bot-session-record-*/*",
                 "Condition": {
                     "StringEquals": {
                         "aws:ResourceAccount": account_id
                     }
                 }
             }
-            
         ],
     }
     assume_role_policy_document = {
