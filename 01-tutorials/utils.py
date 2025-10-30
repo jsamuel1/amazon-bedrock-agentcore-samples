@@ -236,16 +236,22 @@ def create_agentcore_role(agent_name):
             RoleName=agentcore_role_name,
             AssumeRolePolicyDocument=assume_role_policy_document_json,
         )
+        # Pause to make sure role is created
+        time.sleep(10)
 
     # Attach the AWSLambdaBasicExecutionRole policy
-    print(f"attaching role policy {agentcore_role_name}")
-    try:
-        iam_client.put_role_policy(
-            PolicyDocument=role_policy_document,
-            PolicyName="AgentCorePolicy",
-            RoleName=agentcore_role_name,
-        )
-    except Exception as e:
-        print(e)
+    if agentcore_iam_role and agentcore_iam_role['ResponseMetadata']['HTTPStatusCode'] in [200,201]:
+        print(f"attaching role policy {agentcore_role_name}")
+        try:
+            iam_client.put_role_policy(
+                PolicyDocument=role_policy_document,
+                PolicyName="AgentCorePolicy",
+                RoleName=agentcore_role_name,
+            )
+        except Exception as e:
+            print(e)
+    else:
+        print("❌ Role creation failed, skipping policy attachment")
+        
 
     return agentcore_iam_role
