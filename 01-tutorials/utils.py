@@ -168,25 +168,6 @@ def create_agentcore_role(agent_name):
                     f"arn:aws:bedrock-agentcore:{region}:{account_id}:workload-identity-directory/default",
                     f"arn:aws:bedrock-agentcore:{region}:{account_id}:workload-identity-directory/default/workload-identity/{agent_name}-*",
                 ],
-            },
-             {
-                "Effect": "Allow",
-                "Action": ["s3:ListBucket"],
-                "Resource": "arn:aws:s3:::web-bot-session-record-*"
-            },
-            {
-                "Effect": "Allow",
-                "Action": [
-                    "s3:PutObject",
-                    "s3:ListMultipartUploadParts",
-                    "s3:AbortMultipartUpload"
-                ],
-                "Resource": f"arn:aws:s3:::web-bot-session-record-*/*",
-                "Condition": {
-                    "StringEquals": {
-                        "aws:ResourceAccount": account_id
-                    }
-                }
             }
         ],
     }
