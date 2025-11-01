@@ -3,12 +3,18 @@ import json
 import time
 from boto3.session import Session
 
-USER_NAME = "testuser"
-PASSWORD = "MyPassword123!"
-TEMP_ADMIN_PASSWORD = "Temp123!"
 
+def setup_cognito_user_pool(
+    pool_name="MCPServerPool",
+    username="testuser",
+    password=None,
+    temp_password=None,
+):
+    if not password or not temp_password:
+        raise ValueError(
+            "password and temp_password are required. Do not use hardcoded credentials."
+        )
 
-def setup_cognito_user_pool(pool_name="MCPServerPool"):
     boto_session = Session()
     region = boto_session.region_name
     # Initialize Cognito client
@@ -30,19 +36,19 @@ def setup_cognito_user_pool(pool_name="MCPServerPool"):
         # Create User
         cognito_client.admin_create_user(
             UserPoolId=pool_id,
-            Username=USER_NAME,
-            TemporaryPassword=TEMP_ADMIN_PASSWORD,
+            Username=username,
+            TemporaryPassword=temp_password,
             MessageAction="SUPPRESS",
         )
         # Set Permanent Password
         cognito_client.admin_set_user_password(
-            UserPoolId=pool_id, Username=USER_NAME, Password=PASSWORD, Permanent=True
+            UserPoolId=pool_id, Username=username, Password=password, Permanent=True
         )
         # Authenticate User and get Access Token
         auth_response = cognito_client.initiate_auth(
             ClientId=client_id,
             AuthFlow="USER_PASSWORD_AUTH",
-            AuthParameters={"USERNAME": USER_NAME, "PASSWORD": PASSWORD},
+            AuthParameters={"USERNAME": username, "PASSWORD": password},
         )
         bearer_token = auth_response["AuthenticationResult"]["AccessToken"]
         refresh_token = auth_response["AuthenticationResult"]["RefreshToken"]
@@ -68,7 +74,10 @@ def setup_cognito_user_pool(pool_name="MCPServerPool"):
         return None
 
 
-def reauthenticate_user(client_id):
+def reauthenticate_user(client_id, username, password):
+    if not password:
+        raise ValueError("password is required. Do not use hardcoded credentials.")
+
     boto_session = Session()
     region = boto_session.region_name
     # Initialize Cognito client
@@ -77,7 +86,7 @@ def reauthenticate_user(client_id):
     auth_response = cognito_client.initiate_auth(
         ClientId=client_id,
         AuthFlow="USER_PASSWORD_AUTH",
-        AuthParameters={"USERNAME": USER_NAME, "PASSWORD": PASSWORD},
+        AuthParameters={"USERNAME": username, "PASSWORD": password},
     )
     bearer_token = auth_response["AuthenticationResult"]["AccessToken"]
     return bearer_token
@@ -217,16 +226,23 @@ def create_agentcore_role(agent_name):
             RoleName=agentcore_role_name,
             AssumeRolePolicyDocument=assume_role_policy_document_json,
         )
+        # Pause to make sure role is created
+        time.sleep(10)
 
     # Attach the AWSLambdaBasicExecutionRole policy
-    print(f"attaching role policy {agentcore_role_name}")
-    try:
-        iam_client.put_role_policy(
-            PolicyDocument=role_policy_document,
-            PolicyName="AgentCorePolicy",
-            RoleName=agentcore_role_name,
-        )
-    except Exception as e:
-        print(e)
+    if agentcore_iam_role and agentcore_iam_role["ResponseMetadata"][
+        "HTTPStatusCode"
+    ] in [200, 201]:
+        print(f"attaching role policy {agentcore_role_name}")
+        try:
+            iam_client.put_role_policy(
+                PolicyDocument=role_policy_document,
+                PolicyName="AgentCorePolicy",
+                RoleName=agentcore_role_name,
+            )
+        except Exception as e:
+            print(e)
+    else:
+        print("❌ Role creation failed, skipping policy attachment")
 
     return agentcore_iam_role
