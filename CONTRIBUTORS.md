@@ -6,49 +6,50 @@
 - aristsakpinis93
 - aurbac
 - bergjaak
+- brianloyal
+- chintanpatel-ai
+- Chintan Patel
 - crupakheti
 - danystinson
+- David Kaleko
 - dhawalkp
 - didhd
 - EashanKaushik
+- erezweinstein5
+- Evandro Franco
 - Fabian Rami
+- Frank Dallezotte
 - Grace Lang
+- greg-aws
+- HardikThakkar94
+- jagdeep1
+- joseanavarrom
 - Joshua Samuel
 - khastation
-- manchandakp
 - madhurprash
+- manchandakp
 - Meghana Ashok
 - mttanke
 - mvangara10
+- Omar Elkharbotly
 - ozhn
-- Polaris Jhandi 
+- Polaris Jhandi
 - premaiyer
 - rahullks
 - rameshv29
 - rohillasandeep
+- Sandeep Raveesh-Babu
+- sasikiran-malladi
 - satveerkhurpa
+- saurabh-et-al
 - seanslavichaws
+- Shreyas Subramanian
 - sssumarss
 - sundargthb
+- Sunil Ramachandra
+- sunkavar
+- Veda Raman
 - vedashree1110
 - vedashreevinay
 - vgodwinamz
 - w601sxs
-- erezweinstein5
-- HardikThakkar94
-- brianloyal
-- jagdeep1
-- Sunil Ramachandra
-- Sandeep Raveesh-Babu
-- chintanpatel-ai
-- saurabh-et-al
-- Evandro Franco
-- greg-aws
-- Frank Dallezotte
-- Omar Elkharbotly
-- Chintan Patel
-- Shreyas Subramanian
-- David Kaleko
-- sasikiran-malladi
-- sunkavar
-- joseanavarrom
