@@ -36,6 +36,42 @@ To send us a pull request, please:
 5. Send us a pull request, answering any default questions in the pull request interface.
 6. Pay attention to any automated CI failures reported in the pull request, and stay involved in the conversation.
 
+### Code Quality Checks
+
+This repository uses automated code quality checks that run on all pull requests. To ensure your changes will pass these checks before pushing:
+
+**Install pre-commit hooks:**
+```bash
+# Install pre-commit
+uv tool install pre-commit
+# or: pip install pre-commit
+
+# Install the git hooks
+pre-commit install
+```
+
+**Run checks manually:**
+```bash
+# Check all files
+pre-commit run --all-files
+
+# Check specific files
+pre-commit run --files path/to/file.py
+
+# Check only staged files
+pre-commit run
+```
+
+The pre-commit hooks will automatically:
+- Format Python code with ruff
+- Lint Python code for errors
+- Format JavaScript/TypeScript with prettier
+- Lint JavaScript/TypeScript with eslint
+- Fix trailing whitespace and line endings
+- Validate YAML and JSON files
+
+These checks mirror the GitHub Actions that run on pull requests, helping you catch issues early.
+
 GitHub provides additional document on [forking a repository](https://help.github.com/articles/fork-a-repo/) and
 [creating a pull request](https://help.github.com/articles/creating-a-pull-request/).
 

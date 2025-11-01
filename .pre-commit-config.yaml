@@ -1,0 +1,57 @@
+# Pre-commit hooks that mirror GitHub Actions checks
+# Install: uv tool install pre-commit (or pip install pre-commit)
+# Setup: pre-commit install
+# Run manually: pre-commit run --all-files
+# Update hooks: pre-commit autoupdate
+
+repos:
+  # Python linting and formatting (matches python-lint.yml)
+  # GitHub Actions uses: uv tool install ruff (latest)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.3  # Run 'pre-commit autoupdate' to update
+    hooks:
+      # Run ruff linter (matches: ruff check)
+      - id: ruff
+        args: [--fix]
+        types_or: [python, pyi]
+      # Run ruff formatter (matches: ruff format --check)
+      - id: ruff-format
+        types_or: [python, pyi]
+
+  # JavaScript/TypeScript linting and formatting (matches js-lint.yml)
+  # GitHub Actions uses: npm install -g eslint prettier (latest)
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v9.38.0  # Run 'pre-commit autoupdate' to update
+    hooks:
+      - id: eslint
+        files: \.(js|ts|jsx|tsx)$
+        types: [file]
+        additional_dependencies:
+          - eslint
+          - '@typescript-eslint/parser'
+          - '@typescript-eslint/eslint-plugin'
+
+  # Prettier formatting (matches js-lint.yml: npx prettier --check)
+  # Using local hook since mirrors-prettier is archived
+  # Auto-fixes files with --write (better for pre-commit than --check)
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier
+        entry: npx prettier --write --ignore-unknown
+        language: system
+        files: \.(js|ts|jsx|tsx|json|yaml|yml|md)$
+
+  # General file checks (good practices, not in GitHub Actions but helpful)
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0  # Run 'pre-commit autoupdate' to update
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=5000']
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+        args: ['--fix=lf']
