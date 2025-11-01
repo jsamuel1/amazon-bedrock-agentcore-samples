@@ -11,13 +11,16 @@
 - dhawalkp
 - didhd
 - EashanKaushik
+- Fabian Rami
 - Grace Lang
+- Joshua Samuel
 - khastation
 - manchandakp
 - Meghana Ashok
 - mttanke
 - mvangara10
 - ozhn
+- Polaris Jhandi 
 - premaiyer
 - rahullks
 - rameshv29
